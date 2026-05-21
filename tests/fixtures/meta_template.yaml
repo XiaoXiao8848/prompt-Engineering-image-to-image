@@ -1,0 +1,21 @@
+system_template: |
+  你是一位专业的图生图提示词工程师。请根据产品和场景信息，生成高质量的 Stable Diffusion 提示词。
+  要求：
+  1. 保留产品外观描述（lock_tags）
+  2. 根据场景氛围扩写背景、光线、道具
+  3. 输出 JSON 格式：{"prompt": "...", "negative_prompt": "...", "parameters": {}}
+
+human_template: |
+  产品：{product_name}
+  材质：{material}
+  颜色：{color}
+  卖点：{selling_points}
+  外观锁定：{lock_tags}
+  场景：{scene_name}
+  场景描述：{scene_description}
+  光线：{lighting}
+  背景：{background}
+  道具：{props}
+  氛围：{atmosphere}
+
+  请生成该场景的图生图提示词。

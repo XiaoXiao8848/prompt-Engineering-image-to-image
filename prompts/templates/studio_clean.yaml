@@ -1,0 +1,24 @@
+# 场景模板：纯白棚拍
+# 适用：电商主图、详情首图
+# LangChain PromptTemplate 格式
+
+scene_id: studio_clean
+scene_name: 纯白棚拍
+
+template: |
+  {lock_tags}, pure white seamless background, softbox lighting from both sides,
+  clean minimal composition, product centered, studio photography,
+  high key lighting, no shadows, professional product shot,
+  {material_keywords}, sharp focus, 8k uhd, masterpiece, best quality,
+  commercial photography, e-commerce main image
+
+negative_prompt: |
+  cluttered background, harsh shadows, low quality, blurry, deformed,
+  distorted shape, wrong color, extra bottles, cropped, watermark,
+  text, logo mutation, bad anatomy, noise, grain
+
+parameters:
+  denoising_strength: 0.35
+  cfg_scale: 7.0
+  steps: 30
+  sampler: DPM++ 2M Karras

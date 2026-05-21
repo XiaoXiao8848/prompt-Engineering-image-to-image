@@ -1,0 +1,94 @@
+# 场景定义库
+# 每个场景描述光线、背景、道具、氛围等要素
+
+scenes:
+  - id: studio_clean
+    name: 纯白棚拍
+    description: 经典电商主图风格，纯白背景，均匀柔光，突出产品本身
+    lighting: 柔和漫射光，无明显阴影，均匀照亮
+    background: 纯白色无缝背景纸
+    props: []
+    atmosphere: 干净、专业、极简
+    keywords:
+      - pure white background
+      - softbox lighting
+      - clean and minimal
+      - product centered
+      - studio photography
+      - high key
+
+  - id: lifestyle_home
+    name: 家居生活
+    description: 温馨家居环境，自然光或暖色调灯光，营造日常使用场景
+    lighting: 自然窗光或暖色台灯，侧光或逆光
+    background: 木质桌面、大理石台面、书架或窗台
+    props:
+      - 绿植
+      - 咖啡杯
+      - 毛巾
+      - 香薰蜡烛
+    atmosphere: 温馨、舒适、日常
+    keywords:
+      - cozy home setting
+      - natural window light
+      - wooden table
+      - lifestyle photography
+      - warm tones
+      - morning routine
+
+  - id: luxury_marble
+    name: 轻奢大理石
+    description: 高端美妆/珠宝风格，大理石纹理背景，金色点缀，奢华感
+    lighting: 戏剧性侧光，强调材质光泽
+    background: 白色或黑色大理石纹理
+    props:
+      - 金色托盘
+      - 珍珠
+      - 丝绸布料
+      - 干花
+    atmosphere: 奢华、精致、高端
+    keywords:
+      - marble texture background
+      - gold accents
+      - luxury aesthetic
+      - dramatic side lighting
+      - elegant composition
+      - premium skincare
+
+  - id: water_splash
+    name: 水花动感
+    description: 动态水花效果，清凉感，适合饮料、护肤、清洁类产品
+    lighting: 高速闪光灯，冻结水花瞬间
+    background: 深色或渐变背景，突出水花
+    props:
+      - 飞溅的水滴
+      - 水波纹
+      - 气泡
+      - 冰块
+    atmosphere: 清新、活力、清凉
+    keywords:
+      - water splash
+      - dynamic motion
+      - high speed photography
+      - droplets frozen in air
+      - refreshing
+      - cool blue tones
+
+  - id: outdoor_nature
+    name: 自然户外
+    description: 自然光线下的户外场景，绿植环绕，阳光斑驳
+    lighting: 自然日光，斑驳树影， golden hour 或柔和阴天
+    background: 草地、树叶、自然环境
+    props:
+      - 绿植叶片
+      - 野花
+      - 木质元素
+      - 阳光光斑
+    atmosphere: 自然、纯净、有机
+    keywords:
+      - natural outdoor setting
+      - dappled sunlight
+      - green foliage
+      - bokeh background
+      - organic lifestyle
+      - fresh air feeling

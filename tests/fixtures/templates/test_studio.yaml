@@ -1,0 +1,15 @@
+template: |
+  {lock_tags}, {product_name}, {material}, {color} bottle,
+  {scene_name}, {background}, {lighting},
+  {props}, {atmosphere}, {scene_keywords},
+  product photography, 8k, best quality
+
+negative_prompt: |
+  blurry, low quality, deformed, extra bottles,
+  wrong color, watermark, text
+
+parameters:
+  denoising_strength: 0.35
+  cfg_scale: 7.0
+  steps: 30
+  sampler: DPM++ 2M Karras

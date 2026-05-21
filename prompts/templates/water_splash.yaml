@@ -1,0 +1,26 @@
+# 场景模板：水花动感
+# 适用：饮料、护肤、清洁类产品
+# LangChain PromptTemplate 格式
+
+scene_id: water_splash
+scene_name: 水花动感
+
+template: |
+  {lock_tags}, dynamic water splash, droplets frozen in air,
+  high speed photography, refreshing cool atmosphere,
+  {props}, cool blue tones, crystal clear water,
+  {material_keywords}, motion capture, energetic composition,
+  dramatic lighting on water, sparkling highlights,
+  8k uhd, masterpiece, best quality, commercial photography
+
+negative_prompt: |
+  static, dry, warm tones, low quality, blurry motion,
+  deformed, distorted shape, wrong color, extra bottles,
+  cropped, watermark, text, logo mutation, noise, grain,
+  cartoon, illustration
+
+parameters:
+  denoising_strength: 0.50
+  cfg_scale: 7.5
+  steps: 35
+  sampler: DPM++ 2M Karras

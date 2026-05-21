@@ -1,0 +1,21 @@
+product_id: test_serum
+product_name: 测试精华液
+brand: TestBrand
+material: 磨砂玻璃
+shape: 圆柱形
+color: 琥珀色
+size: 30ml
+lock_tags: "amber glass bottle, frosted texture, gold cap"
+selling_points:
+  - 深层修护
+  - 提亮肤色
+  - 温和不刺激
+material_keywords:
+  - 磨砂玻璃
+  - 琥珀色
+  - 金色瓶盖
+brand_tone: 高端简约
+reference_image:
+  description: 正面平视角度
+  angle: front
+  lighting: 柔和顶光

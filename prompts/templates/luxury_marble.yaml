@@ -1,0 +1,26 @@
+# 场景模板：轻奢大理石
+# 适用：美妆、珠宝、高端礼盒
+# LangChain PromptTemplate 格式
+
+scene_id: luxury_marble
+scene_name: 轻奢大理石
+
+template: |
+  {lock_tags}, marble texture background, gold accents and details,
+  luxury aesthetic, dramatic side lighting, elegant composition,
+  {props}, premium skincare presentation, rich textures,
+  {material_keywords}, sophisticated atmosphere, high-end editorial,
+  soft reflection on marble, cinematic lighting, 8k uhd,
+  masterpiece, best quality, commercial photography
+
+negative_prompt: |
+  cheap background, plastic look, flat lighting, cluttered,
+  low quality, blurry, deformed, distorted shape, wrong color,
+  extra bottles, cropped, watermark, text, logo mutation, noise,
+  cartoon, illustration, painting
+
+parameters:
+  denoising_strength: 0.40
+  cfg_scale: 8.0
+  steps: 35
+  sampler: DPM++ 2M Karras

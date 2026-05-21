@@ -1,0 +1,27 @@
+scenes:
+  - id: test_studio
+    name: 测试棚拍
+    description: 纯白背景棚拍测试
+    lighting: 柔光箱双侧打光
+    background: 纯白无缝背景
+    props:
+      - 反光板
+      - 柔光布
+    atmosphere: 干净专业
+    keywords:
+      - 棚拍
+      - 白底
+      - 产品图
+  - id: test_lifestyle
+    name: 测试生活场景
+    description: 家居生活场景测试
+    lighting: 自然窗光
+    background: 木质桌面
+    props:
+      - 绿植
+      - 咖啡杯
+    atmosphere: 温馨自然
+    keywords:
+      - 生活
+      - 家居
+      - 自然光

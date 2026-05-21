@@ -1,0 +1,39 @@
+# 产品配置：护肤精华液
+# 用于图生图多场景提示词生成
+
+product_id: skincare_serum
+product_name: 焕颜修护精华液
+brand: 悦肌
+material: 磨砂玻璃瓶
+shape: 圆柱滴管瓶
+color: 琥珀色瓶身 + 金色滴管盖
+size: 30ml
+
+# 产品外观锁定标签（图生图时必须保留，防止产品变形）
+lock_tags: >
+  amber glass dropper bottle, gold dropper cap,
+  cylindrical shape, frosted texture, 30ml skincare serum,
+  product photography, centered composition
+
+# 核心卖点（用于 LLM 扩写时理解产品）
+selling_points:
+  - 高浓度烟酰胺提亮肤色
+  - 透明质酸深层保湿
+  - 植物萃取温和修护
+  - 无香精无酒精
+
+# 参考图说明（帮助 LLM 理解产品外观）
+reference_image:
+  description: 琥珀色磨砂玻璃瓶，金色滴管盖，瓶身正面有品牌 logo
+  angle: 正面 45 度侧光
+  lighting: 柔和漫射光，瓶身通透感
+
+# 材质与光影关键词（用于模板渲染）
+material_keywords:
+  - frosted glass
+  - amber translucent
+  - gold metallic cap
+  - liquid glow
+
+# 品牌调性
+brand_tone: 轻奢、自然、专业护肤
