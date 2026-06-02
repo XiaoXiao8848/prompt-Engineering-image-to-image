@@ -50,7 +50,11 @@ class BaseRepository(Generic[ModelType]):
         return list(result.scalars().all())
 
     async def count(self, stmt: Select | None = None) -> int:
-        """统计记录数."""
+        """统计记录数.
+
+        注意：如果 stmt 包含 joinedload 等 eager loader，此方法会失败。
+        调用方应在添加 joinedload 之前先调用 count()。
+        """
         if stmt is None:
             stmt = select(func.count()).select_from(self._model)
         else:
@@ -66,17 +70,19 @@ class BaseRepository(Generic[ModelType]):
         return obj
 
     async def create_many(self, objs: list[ModelType]) -> list[ModelType]:
-        """批量创建记录."""
+        """批量创建记录（避免 N+1 refresh）."""
         self._session.add_all(objs)
         await self._session.flush()
-        for obj in objs:
-            await self._session.refresh(obj)
         return objs
 
     async def update(self, obj: ModelType, **kwargs: Any) -> ModelType:
-        """更新记录（局部更新）."""
+        """更新记录（局部更新）.
+
+        支持更新为 None、空字符串、False 等 falsy 值。
+        只有显式传入的键才会被更新。
+        """
         for key, value in kwargs.items():
-            if value is not None and hasattr(obj, key):
+            if hasattr(obj, key):
                 setattr(obj, key, value)
         await self._session.flush()
         await self._session.refresh(obj)

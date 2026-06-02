@@ -130,3 +130,12 @@ class RedisCache:
     async def expire(self, key: str, ttl: int) -> None:
         """设置 TTL."""
         await self._redis.expire(key, ttl)
+
+    @property
+    def raw(self) -> aioredis.Redis:
+        """暴露底层 Redis 客户端，用于 Pipeline 等高级操作."""
+        return self._redis
+
+    def pipeline(self) -> aioredis.client.Pipeline:
+        """创建 Redis Pipeline."""
+        return self._redis.pipeline()

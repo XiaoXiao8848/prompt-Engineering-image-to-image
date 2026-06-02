@@ -1,18 +1,21 @@
-"""Celery 异步生成任务 — 批量 LLM 调用."""
+"""Celery 异步生成任务 — 批量 LLM 调用.
+
+注意：Celery Worker 是同步环境，我们通过创建新事件循环来运行 async SQLAlchemy 代码。
+生产环境建议考虑 arq 或 RQ 等原生支持 async 的任务队列。
+"""
 
 from __future__ import annotations
 
 import asyncio
 from datetime import datetime, timezone
 
-from sqlalchemy import update
-from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
-from sqlalchemy.orm import sessionmaker
+from asgiref.sync import async_to_sync
+from sqlalchemy import func, select, update
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
 from src.config import settings
 from src.engine.llm_engine import LLMPromptEngine
 from src.engine.template_engine import TemplatePromptEngine
-from src.infrastructure.database import Base
 from src.models.domain.generation import GenerationJob, GenerationResult
 from src.models.domain.product import Product
 from src.models.domain.scene import Scene
@@ -22,26 +25,24 @@ from src.repositories.scene_repo import SceneRepository
 from src.repositories.template_repo import TemplateRepository
 from src.tasks.celery_app import celery_app
 
-
-# 创建同步引擎用于 Celery Worker（Celery 是同步的）
-# 注意：实际生产环境中，Celery Worker 应使用 async_to_sync 或异步支持
-engine = create_async_engine(settings.database_url, pool_pre_ping=True)
-AsyncSessionLocal = sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
-
-
-async def _get_session():
-    """获取数据库会话."""
-    async with AsyncSessionLocal() as session:
-        yield session
+# Celery Worker 专用异步引擎
+_celery_engine = create_async_engine(settings.database_url, pool_pre_ping=True, pool_size=5)
+AsyncSessionLocal = async_sessionmaker(_celery_engine, class_=AsyncSession, expire_on_commit=False)
 
 
 @celery_app.task(bind=True, max_retries=3, default_retry_delay=10)
-def execute_single_generation(self, result_id: int):
+def execute_single_generation(self, result_id: int) -> dict:
     """执行单条生成任务.
 
-    注意：此为同步包装，实际逻辑在 _async_execute 中。
+    Celery 是同步的，我们用 async_to_sync 包装异步逻辑。
     """
-    asyncio.run(_async_execute_single(result_id, self.request.id))
+    try:
+        async_to_sync(_async_execute_single)(result_id, self.request.id)
+        return {"status": "success", "result_id": result_id}
+    except Exception as exc:
+        # 指数退避重试
+        countdown = (2 ** self.request.retries) * 5
+        raise self.retry(exc=exc, countdown=countdown)
 
 
 async def _async_execute_single(result_id: int, task_id: str) -> None:
@@ -53,13 +54,10 @@ async def _async_execute_single(result_id: int, task_id: str) -> None:
         scene_repo = SceneRepository(session)
         template_repo = TemplateRepository(session)
 
-        # 获取结果记录
+        # 获取结果记录（同时加载关联的 job）
         result = await result_repo.get_by_id(result_id)
         if not result:
             return
-
-        # 获取分布式锁
-        # TODO: Redis 锁（需要同步 Redis 客户端）
 
         # 更新状态为 running
         await session.execute(
@@ -81,11 +79,18 @@ async def _async_execute_single(result_id: int, task_id: str) -> None:
             product_data = _product_to_dict(product)
             scene_data = _scene_to_dict(scene)
 
+            # 获取 job 的 LLM 模型配置（避免懒加载）
+            llm_model = None
+            if result.job_id:
+                job = await job_repo.get_by_id(result.job_id)
+                if job:
+                    llm_model = job.llm_model
+
             # 执行生成
             if result.mode == "template":
                 engine = TemplatePromptEngine(template_repo)
             else:
-                engine = LLMPromptEngine(model=result.job.llm_model if result.job else None)
+                engine = LLMPromptEngine(model=llm_model)
 
             generated = await engine.generate(product_data, scene_data)
 
@@ -115,7 +120,6 @@ async def _async_execute_single(result_id: int, task_id: str) -> None:
                 .values(
                     status="failed",
                     error_message=str(exc)[:500],
-                    retry_count=GenerationResult.retry_count + 1,
                 )
             )
             await session.commit()
@@ -126,15 +130,7 @@ async def _update_job_progress(
     session: AsyncSession, job_repo: GenerationJobRepository, job_id: int
 ) -> None:
     """更新任务进度."""
-    results = await session.execute(
-        update(GenerationResult)
-        .where(GenerationResult.job_id == job_id)
-        .values(status=GenerationResult.status)
-    )
-
-    # 统计
-    from sqlalchemy import func, select
-
+    # 统计成功和失败数量
     stmt = select(
         func.count().filter(GenerationResult.status == "success"),
         func.count().filter(GenerationResult.status == "failed"),
@@ -147,9 +143,15 @@ async def _update_job_progress(
     if job:
         total = job.total_tasks
         if completed + failed >= total:
-            status = "completed" if failed == 0 else "partial" if completed > 0 else "failed"
+            new_status = (
+                "completed"
+                if failed == 0
+                else "partial"
+                if completed > 0
+                else "failed"
+            )
         else:
-            status = "running"
+            new_status = "running"
 
         await session.execute(
             update(GenerationJob)
@@ -157,7 +159,7 @@ async def _update_job_progress(
             .values(
                 completed_tasks=completed,
                 failed_tasks=failed,
-                status=status,
+                status=new_status,
                 completed_at=datetime.now(timezone.utc) if completed + failed >= total else None,
             )
         )

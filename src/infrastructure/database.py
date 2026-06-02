@@ -13,9 +13,8 @@ from sqlalchemy.orm import declarative_base
 
 from src.config import settings
 
-# 导入所有模型以确保 Base.metadata 发现它们
-# noqa: F401 — 仅用于副作用（注册到 Base.metadata）
-from src.models.domain import *  # noqa: F401,F403
+# 注意：不要在模块顶层导入 models，避免循环导入
+# 模型注册到 Base.metadata 在 Alembic env.py 和 init_db() 中完成
 
 # 创建异步引擎
 engine = create_async_engine(
@@ -43,6 +42,22 @@ Base = declarative_base()
 
 async def init_db() -> None:
     """初始化数据库：创建所有表（开发环境可用，生产环境建议用 Alembic 迁移）."""
+    # 延迟导入模型，避免循环导入，同时确保 Base.metadata 注册所有表
+    from src.models.domain import (  # noqa: F401
+        ApiKey,
+        GenerationJob,
+        GenerationResult,
+        OperationLog,
+        Product,
+        PromptHistory,
+        RateLimitLog,
+        Scene,
+        SceneCategory,
+        Template,
+        TemplateVersion,
+        User,
+    )
+
     async with engine.begin() as conn:
         # 注意：生产环境请使用 Alembic 管理迁移，不要自动创建表
         if settings.is_dev:
@@ -64,7 +79,9 @@ async def get_db_session() -> AsyncGenerator[AsyncSession, None]:
     async with AsyncSessionLocal() as session:
         try:
             yield session
-            await session.commit()
+            # 仅在事务仍处于活跃状态时提交（未被手动 rollback）
+            if session.is_active:
+                await session.commit()
         except Exception:
             await session.rollback()
             raise

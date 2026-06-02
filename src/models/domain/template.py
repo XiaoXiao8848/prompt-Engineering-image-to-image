@@ -5,7 +5,7 @@ from __future__ import annotations
 import uuid
 from datetime import datetime, timezone
 
-from sqlalchemy import Enum, ForeignKey, Index, Integer, String, Text, UniqueConstraint
+from sqlalchemy import JSON, Enum, ForeignKey, Index, Integer, String, Text, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from src.infrastructure.database import Base
@@ -40,7 +40,7 @@ class Template(Base):
         comment="模板类型",
     )
     content: Mapped[str] = mapped_column(Text, nullable=False, comment="模板内容（Jinja2）")
-    variables: Mapped[list[str] | None] = mapped_column(comment="所需变量列表")
+    variables: Mapped[list[str] | None] = mapped_column(JSON, comment="所需变量列表")
     is_default: Mapped[bool] = mapped_column(default=False, comment="是否默认模板")
     created_by: Mapped[int | None] = mapped_column(
         ForeignKey("users.id", ondelete="SET NULL"), comment="创建者"

@@ -56,29 +56,33 @@ class SceneRepository(BaseRepository[Scene]):
         sort_order: str = "desc",
     ) -> tuple[list[Scene], int]:
         """查询场景列表，返回 (列表, 总数)."""
-        stmt = select(Scene).options(joinedload(Scene.category))
+        # 先构建基础查询（不带 joinedload，用于 count）
+        base_stmt = select(Scene)
 
         if category_id is not None:
-            stmt = stmt.where(Scene.category_id == category_id)
+            base_stmt = base_stmt.where(Scene.category_id == category_id)
         if is_public is not None:
-            stmt = stmt.where(Scene.is_public == is_public)
+            base_stmt = base_stmt.where(Scene.is_public == is_public)
         if status:
-            stmt = stmt.where(Scene.status == status)
+            base_stmt = base_stmt.where(Scene.status == status)
         else:
-            stmt = stmt.where(Scene.status != "deleted")
+            base_stmt = base_stmt.where(Scene.status != "deleted")
         if keyword:
-            stmt = stmt.where(
+            base_stmt = base_stmt.where(
                 Scene.name.contains(keyword)
                 | Scene.scene_id.contains(keyword)
             )
 
-        # 排序
+        # 计算总数（在添加 joinedload 之前）
+        total = await self.count(base_stmt)
+
+        # 添加排序、joinedload 和分页
         sort_column = getattr(Scene, sort_by, Scene.created_at)
         order_func = desc if sort_order == "desc" else asc
-        stmt = stmt.order_by(order_func(sort_column))
+        stmt = base_stmt.order_by(order_func(sort_column)).options(
+            joinedload(Scene.category)
+        ).offset(skip).limit(limit)
 
-        total = await self.count(stmt)
-        stmt = stmt.offset(skip).limit(limit)
         result = await self._session.execute(stmt)
         return list(result.scalars().all()), total
 

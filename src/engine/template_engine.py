@@ -28,13 +28,16 @@ class TemplatePromptEngine(BasePromptEngine):
     ) -> GeneratedPromptOut:
         """加载场景模板，用 Jinja2 渲染."""
         scene_id = scene_data.get("scene_id")
+        db_id = scene_data.get("db_id")
+        if not db_id:
+            raise ValueError("scene_data 必须包含 'db_id'")
 
         # 查询默认正向模板
         positive_tpl = await self._template_repo.get_default_by_scene(
-            scene_id=scene_data.get("db_id"), template_type="positive"
+            scene_id=db_id, template_type="positive"
         )
         negative_tpl = await self._template_repo.get_default_by_scene(
-            scene_id=scene_data.get("db_id"), template_type="negative"
+            scene_id=db_id, template_type="negative"
         )
 
         positive_content = positive_tpl.content if positive_tpl else ""

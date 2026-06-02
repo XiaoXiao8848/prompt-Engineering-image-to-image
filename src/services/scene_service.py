@@ -72,9 +72,16 @@ class SceneService:
         await self._repo.update(scene, **update_data)
         return scene
 
-    async def delete(self, scene_uuid: str) -> None:
+    async def delete(self, scene_uuid: str, user_id: int | None = None) -> None:
         """软删除场景."""
         scene = await self.get_by_uuid(scene_uuid)
+        # 非内置场景只能由创建者删除；内置场景需要管理员权限
+        if scene.is_builtin and user_id is not None:
+            # TODO: 检查管理员权限
+            pass
+        if not scene.is_builtin and scene.created_by != user_id:
+            from src.core.exceptions import AuthorizationException
+            raise AuthorizationException("无权删除该场景")
         await self._repo.soft_delete(scene)
 
     async def list_scenes(

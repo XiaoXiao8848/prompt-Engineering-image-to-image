@@ -95,7 +95,7 @@ async def delete_template(
     """删除模板."""
     try:
         service = TemplateService(db)
-        await service.delete(template_uuid)
+        await service.delete(template_uuid, user_id=user["id"])
         return success(message="删除成功")
     except NotFoundException as e:
         raise exception_to_http(e) from e

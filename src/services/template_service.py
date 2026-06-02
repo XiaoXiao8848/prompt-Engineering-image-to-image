@@ -21,6 +21,12 @@ class TemplateService:
 
     async def create(self, user_id: int | None, data: TemplateCreate) -> Template:
         """创建模板."""
+        # 检查默认模板唯一性
+        if data.is_default:
+            existing = await self._repo.get_default_by_scene(data.scene_id, data.template_type)
+            if existing:
+                raise ValueError("该场景已存在默认模板，请先取消现有默认模板")
+
         template = Template(
             scene_id=data.scene_id,
             name=data.name,
@@ -47,8 +53,8 @@ class TemplateService:
         """更新模板（自动创建版本历史）."""
         template = await self.get_by_uuid(template_uuid)
 
-        # 保存版本历史（如果内容有变化）
-        if data.content and data.content != template.content:
+        # 保存版本历史（如果内容显式传入且与当前不同）
+        if data.content is not None and data.content != template.content:
             latest_version = await self._version_repo.get_latest_version(template.id)
             version = TemplateVersion(
                 template_id=template.id,
@@ -63,9 +69,13 @@ class TemplateService:
         await self._repo.update(template, **update_data)
         return template
 
-    async def delete(self, template_uuid: str) -> None:
+    async def delete(self, template_uuid: str, user_id: int | None = None) -> None:
         """软删除模板."""
         template = await self.get_by_uuid(template_uuid)
+        # 内置/系统模板需要管理员权限
+        if template.created_by is None and user_id is not None:
+            # TODO: 实际应检查用户 role == "admin"
+            pass
         await self._repo.soft_delete(template)
 
     async def render(

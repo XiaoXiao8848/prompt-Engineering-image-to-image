@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
 
 from src.api.deps import CurrentUser, DBSession
 from src.core.exceptions import NotFoundException, exception_to_http

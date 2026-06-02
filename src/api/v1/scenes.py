@@ -5,7 +5,7 @@ from __future__ import annotations
 from fastapi import APIRouter, Depends
 
 from src.api.deps import AdminUser, CurrentUser, DBSession, OptionalUser
-from src.core.exceptions import NotFoundException, exception_to_http
+from src.core.exceptions import NotFoundException, ValidationException, exception_to_http
 from src.core.responses import success
 from src.schemas.scene import (
     SceneBriefOut,
@@ -55,7 +55,7 @@ async def create_scene(data: SceneCreate, user: CurrentUser, db: DBSession) -> d
         scene = await service.create(user_id=user["id"], data=data)
         return success(data=SceneOut.model_validate(scene), message="创建成功")
     except ValueError as e:
-        raise exception_to_http(ValueError(str(e))) from e
+        raise exception_to_http(ValidationException(str(e))) from e
 
 
 @router.get("", response_model=dict)
@@ -120,7 +120,7 @@ async def delete_scene(scene_uuid: str, user: CurrentUser, db: DBSession) -> dic
     """删除场景."""
     try:
         service = SceneService(db)
-        await service.delete(scene_uuid)
+        await service.delete(scene_uuid, user_id=user["id"])
         return success(message="删除成功")
     except NotFoundException as e:
         raise exception_to_http(e) from e

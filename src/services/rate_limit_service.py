@@ -39,7 +39,7 @@ class RateLimitService:
         key = f"pe:rate_limit:{identifier}:{endpoint}"
         request_id = str(uuid4())
 
-        pipe = self._redis._redis.pipeline()
+        pipe = self._redis.pipeline()
         # 移除窗口外的旧记录
         pipe.zremrangebyscore(key, 0, window_start)
         # 添加当前请求
@@ -53,7 +53,7 @@ class RateLimitService:
 
         if current_count > limit:
             # 超限，删除刚添加的记录
-            await self._redis._redis.zrem(key, request_id)
+            await self._redis.raw.zrem(key, request_id)
             reset_at = window_start + window * 1000
             return False, {
                 "limit": limit,

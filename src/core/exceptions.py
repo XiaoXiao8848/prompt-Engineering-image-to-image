@@ -72,6 +72,12 @@ class LLMException(BaseAppException):
 
 def exception_to_http(exc: BaseAppException) -> HTTPException:
     """将应用异常转换为 FastAPI HTTPException."""
+    if not isinstance(exc, BaseAppException):
+        # 防御性处理：非应用异常转为 500
+        return HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail={"code": "INTERNAL_ERROR", "message": str(exc)},
+        )
     status_map = {
         "NOT_FOUND": status.HTTP_404_NOT_FOUND,
         "ALREADY_EXISTS": status.HTTP_409_CONFLICT,

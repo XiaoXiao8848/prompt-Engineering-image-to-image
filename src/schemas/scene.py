@@ -15,13 +15,15 @@ class SceneCategoryCreate(BaseSchema):
     sort_order: int = Field(default=0, description="排序")
 
 
+from datetime import datetime
+
 class SceneCategoryOut(IDMixin):
     """场景分类响应."""
 
     name: str
     description: str | None
     sort_order: int
-    created_at: str
+    created_at: datetime
 
 
 class SceneCreate(BaseSchema):

@@ -33,7 +33,7 @@ class LLMPromptEngine(BasePromptEngine):
 
         self._llm = ChatOpenAI(
             model=model_name,
-            api_key=api_key,
+            openai_api_key=api_key,
             base_url=base_url,
             temperature=temp,
             timeout=settings.llm_timeout,
