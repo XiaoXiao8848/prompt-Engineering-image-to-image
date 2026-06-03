@@ -58,27 +58,39 @@ class SceneService:
         return scene
 
     async def update(
-        self, scene_uuid: str, data: SceneUpdate, user_id: int | None = None
+        self,
+        scene_uuid: str,
+        data: SceneUpdate,
+        user_id: int | None = None,
+        is_admin: bool = False,
     ) -> Scene:
         """更新场景."""
         scene = await self.get_by_uuid(scene_uuid)
 
         # 内置场景只有管理员能修改
-        if scene.is_builtin and user_id is not None:
-            # TODO: 检查管理员权限
-            pass
+        if scene.is_builtin and not is_admin:
+            from src.core.exceptions import AuthorizationException
+            raise AuthorizationException("内置场景需要管理员权限才能修改")
+
+        # 非内置场景只能由创建者修改
+        if not scene.is_builtin and scene.created_by != user_id:
+            from src.core.exceptions import AuthorizationException
+            raise AuthorizationException("无权修改该场景")
 
         update_data = data.model_dump(exclude_unset=True)
         await self._repo.update(scene, **update_data)
         return scene
 
-    async def delete(self, scene_uuid: str, user_id: int | None = None) -> None:
+    async def delete(
+        self, scene_uuid: str, user_id: int | None = None, is_admin: bool = False
+    ) -> None:
         """软删除场景."""
         scene = await self.get_by_uuid(scene_uuid)
-        # 非内置场景只能由创建者删除；内置场景需要管理员权限
-        if scene.is_builtin and user_id is not None:
-            # TODO: 检查管理员权限
-            pass
+        # 内置场景需要管理员权限
+        if scene.is_builtin and not is_admin:
+            from src.core.exceptions import AuthorizationException
+            raise AuthorizationException("内置场景需要管理员权限才能删除")
+        # 非内置场景只能由创建者删除
         if not scene.is_builtin and scene.created_by != user_id:
             from src.core.exceptions import AuthorizationException
             raise AuthorizationException("无权删除该场景")

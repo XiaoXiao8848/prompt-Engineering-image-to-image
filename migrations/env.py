@@ -1,9 +1,14 @@
-"""Alembic 迁移环境配置 — 支持异步 SQLAlchemy."""
+"""Alembic migration environment configuration — supports async SQLAlchemy."""
 
 from __future__ import annotations
 
 import asyncio
+import sys
 from logging.config import fileConfig
+from pathlib import Path
+
+# Add project root to Python path so 'src' can be imported
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from sqlalchemy import pool
 from sqlalchemy.engine import Connection
@@ -11,11 +16,11 @@ from sqlalchemy.ext.asyncio import async_engine_from_config
 
 from alembic import context
 
-# 导入应用配置和模型
+# Import application config and models
 from src.config import settings
 from src.infrastructure.database import Base
 
-# 导入所有模型以确保 Base.metadata 包含全部表
+# Import all models to ensure Base.metadata contains all tables
 from src.models.domain import *  # noqa: F401,F403
 
 # Alembic Config 对象

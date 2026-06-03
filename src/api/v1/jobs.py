@@ -104,9 +104,9 @@ async def get_job_results(job_uuid: str, user: CurrentUser, db: DBSession) -> di
 
 @router.get("", response_model=dict)
 async def list_jobs(
+    user: CurrentUser,  # type: ignore[assignment]
+    db: DBSession,  # type: ignore[assignment]
     query: JobListQuery = Depends(),  # type: ignore[assignment]
-    user: CurrentUser = Depends(),  # type: ignore[assignment]
-    db: DBSession = Depends(),  # type: ignore[assignment]
 ) -> dict:
     """查询任务列表."""
     repo = GenerationJobRepository(db)

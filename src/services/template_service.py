@@ -69,13 +69,19 @@ class TemplateService:
         await self._repo.update(template, **update_data)
         return template
 
-    async def delete(self, template_uuid: str, user_id: int | None = None) -> None:
+    async def delete(
+        self, template_uuid: str, user_id: int | None = None, is_admin: bool = False
+    ) -> None:
         """软删除模板."""
         template = await self.get_by_uuid(template_uuid)
-        # 内置/系统模板需要管理员权限
-        if template.created_by is None and user_id is not None:
-            # TODO: 实际应检查用户 role == "admin"
-            pass
+        # 系统模板（created_by 为 None）需要管理员权限
+        if template.created_by is None and not is_admin:
+            from src.core.exceptions import AuthorizationException
+            raise AuthorizationException("系统模板需要管理员权限才能删除")
+        # 非系统模板只能由创建者删除
+        if template.created_by is not None and template.created_by != user_id:
+            from src.core.exceptions import AuthorizationException
+            raise AuthorizationException("无权删除该模板")
         await self._repo.soft_delete(template)
 
     async def render(

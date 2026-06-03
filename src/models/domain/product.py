@@ -5,7 +5,7 @@ from __future__ import annotations
 import uuid
 from datetime import datetime, timezone
 
-from sqlalchemy import JSON, Enum, ForeignKey, Index, String, Text, UniqueConstraint
+from sqlalchemy import JSON, DateTime, Enum, ForeignKey, Index, String, Text, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from src.infrastructure.database import Base
@@ -17,7 +17,7 @@ class Product(Base):
     __tablename__ = "products"
     __table_args__ = (
         UniqueConstraint("user_id", "product_id", name="uk_user_product"),
-        Index("idx_user_status", "user_id", "status"),
+        Index("idx_product_user_status", "user_id", "status"),
         {"comment": "产品配置表"},
     )
 

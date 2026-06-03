@@ -5,7 +5,7 @@ from __future__ import annotations
 import uuid
 from datetime import datetime, timezone
 
-from sqlalchemy import JSON, Enum, ForeignKey, Index, Integer, String, Text
+from sqlalchemy import JSON, DateTime, Enum, ForeignKey, Index, Integer, String, Text
 from sqlalchemy.orm import Mapped, mapped_column
 
 from src.infrastructure.database import Base
@@ -16,8 +16,8 @@ class GenerationJob(Base):
 
     __tablename__ = "generation_jobs"
     __table_args__ = (
-        Index("idx_user_status", "user_id", "status"),
-        Index("idx_status_created", "status", "created_at"),
+        Index("idx_job_user_status", "user_id", "status"),
+        Index("idx_job_status_created", "status", "created_at"),
         Index("idx_job_uuid", "job_uuid"),
         {"comment": "生成任务表"},
     )

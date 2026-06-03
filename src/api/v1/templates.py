@@ -32,8 +32,8 @@ async def create_template(
 
 @router.get("", response_model=dict)
 async def list_templates(
+    db: DBSession,
     query: TemplateListQuery = Depends(),
-    db: DBSession = Depends(),
 ) -> dict:
     """查询模板列表."""
     service = TemplateService(db)
@@ -95,7 +95,11 @@ async def delete_template(
     """删除模板."""
     try:
         service = TemplateService(db)
-        await service.delete(template_uuid, user_id=user["id"])
+        await service.delete(
+            template_uuid,
+            user_id=user["id"],
+            is_admin=user.get("role") == "admin",
+        )
         return success(message="删除成功")
     except NotFoundException as e:
         raise exception_to_http(e) from e

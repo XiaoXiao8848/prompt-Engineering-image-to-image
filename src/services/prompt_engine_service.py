@@ -160,9 +160,9 @@ class PromptEngineService:
             )
             await self._result_repo.create(result)
 
-        # 5. TODO: 发送 Celery 任务到队列（任务7后续完善）
-        # from src.tasks.generation_tasks import process_generation_job
-        # process_generation_job.delay(job.id)
+        # 5. 发送 Celery 任务到队列
+        from src.tasks.generation_tasks import process_generation_job
+        process_generation_job.delay(job.id)
 
         return BatchGenerateResponse(
             job_uuid=job.job_uuid,

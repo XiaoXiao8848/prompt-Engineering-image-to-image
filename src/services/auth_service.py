@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from datetime import datetime, timezone
+from typing import Any
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -99,6 +100,27 @@ class AuthService:
             "token_type": "bearer",
             "expires_in": 3600,
         }
+
+    async def update_user(
+        self,
+        user_id: int,
+        display_name: str | None = None,
+        avatar_url: str | None = None,
+    ) -> User:
+        """更新用户信息."""
+        user = await self._user_repo.get_by_id(user_id)
+        if not user:
+            raise AuthenticationException("用户不存在")
+
+        update_data: dict[str, Any] = {}
+        if display_name is not None:
+            update_data["display_name"] = display_name
+        if avatar_url is not None:
+            update_data["avatar_url"] = avatar_url
+
+        if update_data:
+            await self._user_repo.update(user, **update_data)
+        return user
 
     async def create_api_key(
         self,

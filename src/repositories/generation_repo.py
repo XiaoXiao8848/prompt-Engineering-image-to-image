@@ -90,6 +90,19 @@ class GenerationResultRepository(BaseRepository[GenerationResult]):
         result = await self._session.execute(stmt)
         return list(result.scalars().all())
 
+    async def list_pending_by_job(self, job_id: int) -> list[GenerationResult]:
+        """查询任务下所有 pending 状态的结果."""
+        stmt = (
+            select(GenerationResult)
+            .where(
+                GenerationResult.job_id == job_id,
+                GenerationResult.status == "pending",
+            )
+            .order_by(asc(GenerationResult.id))
+        )
+        result = await self._session.execute(stmt)
+        return list(result.scalars().all())
+
     async def list_by_user_product(
         self, user_id: int, product_id: int, skip: int = 0, limit: int = 20
     ) -> list[GenerationResult]:

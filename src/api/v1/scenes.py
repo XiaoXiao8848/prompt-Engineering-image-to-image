@@ -60,8 +60,8 @@ async def create_scene(data: SceneCreate, user: CurrentUser, db: DBSession) -> d
 
 @router.get("", response_model=dict)
 async def list_scenes(
+    db: DBSession,
     query: SceneListQuery = Depends(),
-    db: DBSession = Depends(),
 ) -> dict:
     """查询场景列表."""
     service = SceneService(db)
@@ -104,12 +104,20 @@ async def get_scene(scene_uuid: str, db: DBSession) -> dict:
 
 @router.put("/{scene_uuid}", response_model=dict)
 async def update_scene(
-    scene_uuid: str, data: SceneUpdate, user: CurrentUser, db: DBSession
+    scene_uuid: str,
+    data: SceneUpdate,
+    user: CurrentUser,
+    db: DBSession,
 ) -> dict:
     """更新场景."""
     try:
         service = SceneService(db)
-        scene = await service.update(scene_uuid, data, user_id=user["id"])
+        scene = await service.update(
+            scene_uuid,
+            data,
+            user_id=user["id"],
+            is_admin=user.get("role") == "admin",
+        )
         return success(data=SceneOut.model_validate(scene), message="更新成功")
     except NotFoundException as e:
         raise exception_to_http(e) from e
@@ -120,7 +128,11 @@ async def delete_scene(scene_uuid: str, user: CurrentUser, db: DBSession) -> dic
     """删除场景."""
     try:
         service = SceneService(db)
-        await service.delete(scene_uuid, user_id=user["id"])
+        await service.delete(
+            scene_uuid,
+            user_id=user["id"],
+            is_admin=user.get("role") == "admin",
+        )
         return success(message="删除成功")
     except NotFoundException as e:
         raise exception_to_http(e) from e

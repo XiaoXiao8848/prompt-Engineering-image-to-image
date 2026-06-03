@@ -81,8 +81,13 @@ async def get_me(user: CurrentUser) -> dict:
 @router.put("/me", response_model=dict)
 async def update_me(data: UserUpdate, user: CurrentUser, db: DBSession) -> dict:
     """更新当前用户信息."""
-    # TODO: 实现用户信息更新
-    return success(data=user, message="更新成功")
+    service = AuthService(db)
+    updated = await service.update_user(
+        user_id=user["id"],
+        display_name=data.display_name,
+        avatar_url=data.avatar_url,
+    )
+    return success(data=UserOut.model_validate(updated), message="更新成功")
 
 
 @router.post("/api-keys", response_model=dict)

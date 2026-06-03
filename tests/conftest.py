@@ -1,12 +1,36 @@
-"""Pytest 共享 fixtures."""
+"""Pytest shared fixtures."""
 
 from __future__ import annotations
 
 from pathlib import Path
 
 import pytest
+import pytest_asyncio
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
-from src.models import ProductConfig, SceneDefinition
+from src.infrastructure.database import Base
+import importlib.util
+_spec = importlib.util.spec_from_file_location("legacy_models", str(Path(__file__).parent.parent / "src" / "models.py"))
+_legacy_models = importlib.util.module_from_spec(_spec)
+_spec.loader.exec_module(_legacy_models)
+ProductConfig = _legacy_models.ProductConfig
+SceneDefinition = _legacy_models.SceneDefinition
+
+
+# ── Database fixtures ──
+
+@pytest_asyncio.fixture
+async def db_session() -> AsyncSession:
+    """Create a test database session using SQLite in-memory."""
+    engine = create_async_engine("sqlite+aiosqlite:///:memory:", echo=False)
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all, checkfirst=True)
+
+    async_session = async_sessionmaker(engine, expire_on_commit=False)
+    async with async_session() as session:
+        yield session
+
+    await engine.dispose()
 
 
 # ── 路径 fixtures ──

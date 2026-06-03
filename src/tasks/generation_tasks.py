@@ -196,3 +196,44 @@ def _scene_to_dict(scene: Scene) -> dict:
         "atmosphere": scene.atmosphere or "",
         "scene_keywords": ", ".join(scene.keywords or []),
     }
+
+
+@celery_app.task(bind=True, max_retries=3, default_retry_delay=10)
+def process_generation_job(self, job_id: int) -> dict:
+    """处理批量生成任务 — 将 job 下所有 pending 子任务分发到 Celery Worker.
+
+    注意：Celery 是同步的，我们用 async_to_sync 包装异步逻辑。
+    """
+    try:
+        async_to_sync(_async_process_job)(job_id)
+        return {"status": "queued", "job_id": job_id}
+    except Exception as exc:
+        countdown = (2 ** self.request.retries) * 5
+        raise self.retry(exc=exc, countdown=countdown)
+
+
+async def _async_process_job(job_id: int) -> None:
+    """异步处理批量任务分发."""
+    async with AsyncSessionLocal() as session:
+        job_repo = GenerationJobRepository(session)
+        result_repo = GenerationResultRepository(session)
+
+        # 获取任务
+        job = await job_repo.get_by_id(job_id)
+        if not job:
+            return
+
+        # 更新任务状态为 queued
+        await session.execute(
+            update(GenerationJob)
+            .where(GenerationJob.id == job_id)
+            .values(status="queued")
+        )
+        await session.commit()
+
+        # 获取所有 pending 的子任务
+        pending_results = await result_repo.list_pending_by_job(job_id)
+
+        # 逐个发送 Celery 任务
+        for result in pending_results:
+            execute_single_generation.delay(result.id)

@@ -32,9 +32,9 @@ async def create_product(data: ProductCreate, user: CurrentUser, db: DBSession) 
 
 @router.get("", response_model=dict)
 async def list_products(
+    user: CurrentUser,
+    db: DBSession,
     query: ProductListQuery = Depends(),
-    user: CurrentUser = Depends(),
-    db: DBSession = Depends(),
 ) -> dict:
     """查询产品列表."""
     service = ProductService(db)
