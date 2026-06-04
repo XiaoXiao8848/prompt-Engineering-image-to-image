@@ -3,12 +3,17 @@
 from __future__ import annotations
 
 from fastapi import APIRouter, Depends
+from fastapi.responses import StreamingResponse
+from sqlalchemy import update
 
-from src.api.deps import CurrentUser, DBSession
-from src.core.exceptions import NotFoundException, exception_to_http
+from src.api.deps import CurrentUser, CurrentUserOrApiKey, DBSession, RedisDep
+from src.core.exceptions import NotFoundException, ValidationException, exception_to_http
 from src.core.responses import success
+from src.infrastructure.redis_client import RedisCache
 from src.repositories.generation_repo import GenerationJobRepository, GenerationResultRepository
 from src.schemas.job import JobListQuery, JobProgressOut
+import asyncio
+import json
 
 router = APIRouter(prefix="/jobs", tags=["批量任务"])
 
@@ -100,6 +105,108 @@ async def get_job_results(job_uuid: str, user: CurrentUser, db: DBSession) -> di
         ])
     except NotFoundException as e:
         raise exception_to_http(e) from e
+
+
+@router.post("/{job_uuid}/cancel", response_model=dict)
+async def cancel_job(
+    job_uuid: str,
+    user: CurrentUser,
+    db: DBSession,
+    redis: RedisDep,
+) -> dict:
+    """取消任务."""
+    try:
+        repo = GenerationJobRepository(db)
+        job = await repo.get_by_uuid(job_uuid)
+        if not job or job.user_id != user["id"]:
+            raise NotFoundException("任务不存在")
+
+        if job.status in ("completed", "failed", "cancelled"):
+            raise ValidationException(f"任务状态为 {job.status}，无法取消")
+
+        # Publish cancel signal to Redis
+        await redis.set(f"pe:job:cancel:{job_uuid}", "1", ttl=300)
+
+        # Update job status
+        await db.execute(
+            update(GenerationJob)
+            .where(GenerationJob.id == job.id)
+            .values(status="cancelled")
+        )
+        await db.commit()
+
+        return success(message="任务已取消")
+    except (NotFoundException, ValidationException) as e:
+        raise exception_to_http(e) from e
+
+
+@router.get("/{job_uuid}/stream")
+async def stream_job_progress(
+    job_uuid: str,
+    request: Request,
+    db: DBSession,
+) -> StreamingResponse:
+    """SSE 实时推送任务进度（支持 ?token= 查询参数）."""
+    # Authenticate via query param token (EventSource cannot send custom headers)
+    token = request.query_params.get("token")
+    if not token:
+        raise AuthenticationException("未提供认证令牌")
+    from src.core.security import decode_token
+    payload = decode_token(token)
+    if not payload or payload.get("type") != "access":
+        raise AuthenticationException("令牌无效或已过期")
+    user_id = int(payload["sub"])
+    user_repo = UserRepository(db)
+    user = await user_repo.get_by_id(user_id)
+    if not user or user.status != "active":
+        raise AuthenticationException("用户不存在或已被禁用")
+    """SSE 实时推送任务进度."""
+    async def event_generator():
+        repo = GenerationJobRepository(db)
+        last_status = None
+        last_progress = -1
+        max_retries = 300  # ~5 minutes at 1s interval
+
+        for _ in range(max_retries):
+            job = await repo.get_by_uuid(job_uuid)
+            if not job or job.user_id != user["id"]:
+                yield f"event: error\ndata: {json.dumps({'message': '任务不存在'})}\n\n"
+                break
+
+            progress = (
+                (job.completed_tasks + job.failed_tasks) / job.total_tasks * 100
+                if job.total_tasks > 0 else 0
+            )
+
+            # Only send if status or progress changed
+            if job.status != last_status or progress != last_progress:
+                last_status = job.status
+                last_progress = progress
+                data = {
+                    "job_uuid": job.job_uuid,
+                    "status": job.status,
+                    "total_tasks": job.total_tasks,
+                    "completed_tasks": job.completed_tasks,
+                    "failed_tasks": job.failed_tasks,
+                    "progress_percent": round(progress, 2),
+                }
+                yield f"event: progress\ndata: {json.dumps(data)}\n\n"
+
+            if job.status in ("completed", "failed", "cancelled"):
+                yield f"event: done\ndata: {json.dumps({'status': job.status})}\n\n"
+                break
+
+            await asyncio.sleep(1)
+
+    return StreamingResponse(
+        event_generator(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no",
+        },
+    )
 
 
 @router.get("", response_model=dict)

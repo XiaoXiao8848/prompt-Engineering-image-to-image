@@ -13,7 +13,7 @@ from src.core.responses import error
 from src.core.security import decode_token
 from src.infrastructure.database import get_db_session
 from src.infrastructure.redis_client import get_redis, RedisCache
-from src.repositories.user_repo import UserRepository
+from src.repositories.user_repo import ApiKeyRepository, UserRepository
 
 # OAuth2 密码流（用于 Swagger UI 测试）
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/v1/auth/login", auto_error=False)
@@ -127,3 +127,51 @@ async def get_optional_user(
 
 
 OptionalUser = Annotated[dict | None, Depends(get_optional_user)]
+
+
+async def get_current_user_or_api_key(
+    request: Request,
+    db: DBSession,
+    authorization: Annotated[str | None, Header()] = None,
+    x_api_key: Annotated[str | None, Header()] = None,
+) -> dict:
+    """支持 JWT Token 或 API Key 认证.
+
+    优先级：JWT Token > API Key
+    """
+    # 1. Try JWT first
+    if authorization:
+        try:
+            return await get_current_user(request, db, authorization)
+        except AuthenticationException:
+            pass
+
+    # 2. Try API Key
+    if x_api_key:
+        api_key_repo = ApiKeyRepository(db)
+        from src.core.security import hash_api_key
+        key_hash = hash_api_key(x_api_key)
+        api_key = await api_key_repo.get_by_hash(key_hash)
+        if api_key:
+            # Check expiration
+            from datetime import datetime, timezone
+            if api_key.expires_at and api_key.expires_at < datetime.now(timezone.utc):
+                raise AuthenticationException("API Key 已过期")
+            # Get user
+            user_repo = UserRepository(db)
+            user = await user_repo.get_by_id(api_key.user_id)
+            if user and user.status == "active":
+                return {
+                    "id": user.id,
+                    "username": user.username,
+                    "email": user.email,
+                    "role": user.role,
+                    "quota_daily": user.quota_daily,
+                    "quota_used_today": user.quota_used_today,
+                    "api_key_id": api_key.id,
+                }
+
+    raise AuthenticationException("未提供有效的认证信息")
+
+
+CurrentUserOrApiKey = Annotated[dict, Depends(get_current_user_or_api_key)]

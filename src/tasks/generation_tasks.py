@@ -25,6 +25,8 @@ from src.repositories.scene_repo import SceneRepository
 from src.repositories.template_repo import TemplateRepository
 from src.tasks.celery_app import celery_app
 
+import httpx
+
 # Celery Worker 专用异步引擎
 _celery_engine = create_async_engine(settings.database_url, pool_pre_ping=True, pool_size=5)
 AsyncSessionLocal = async_sessionmaker(_celery_engine, class_=AsyncSession, expire_on_commit=False)
@@ -68,6 +70,18 @@ async def _async_execute_single(result_id: int, task_id: str) -> None:
         await session.commit()
 
         try:
+            # 检查取消信号
+            if result.job_id:
+                job = await job_repo.get_by_id(result.job_id)
+                if job and job.status == "cancelled":
+                    await session.execute(
+                        update(GenerationResult)
+                        .where(GenerationResult.id == result_id)
+                        .values(status="cancelled")
+                    )
+                    await session.commit()
+                    return
+
             # 加载产品和场景
             product = await product_repo.get_by_id(result.product_id)
             scene = await scene_repo.get_by_id(result.scene_id)
@@ -163,6 +177,25 @@ async def _update_job_progress(
                 completed_at=datetime.now(timezone.utc) if completed + failed >= total else None,
             )
         )
+
+        # Webhook callback when job completes
+        if completed + failed >= total and job.webhook_url:
+            try:
+                async with httpx.AsyncClient(timeout=30) as client:
+                    await client.post(
+                        job.webhook_url,
+                        json={
+                            "job_uuid": job.job_uuid,
+                            "status": new_status,
+                            "total_tasks": total,
+                            "completed_tasks": completed,
+                            "failed_tasks": failed,
+                            "completed_at": datetime.now(timezone.utc).isoformat(),
+                        },
+                    )
+            except Exception:
+                # Webhook failure should not break the task
+                pass
 
 
 def _product_to_dict(product: Product) -> dict:

@@ -17,6 +17,7 @@ from src.repositories.generation_repo import GenerationJobRepository, Generation
 from src.repositories.product_repo import ProductRepository
 from src.repositories.scene_repo import SceneRepository
 from src.repositories.template_repo import TemplateRepository
+from src.repositories.user_repo import UserRepository
 from src.schemas.prompt import (
     BatchGenerateRequest,
     BatchGenerateResponse,
@@ -42,12 +43,27 @@ class PromptEngineService:
         self._job_repo = GenerationJobRepository(session)
         self._result_repo = GenerationResultRepository(session)
 
+    async def _check_and_deduct_quota(self, user_id: int, amount: int = 1) -> None:
+        """检查并扣减用户配额."""
+        user_repo = UserRepository(self._session)
+        user = await user_repo.get_by_id(user_id)
+        if not user:
+            raise NotFoundException("用户不存在")
+        if user.quota_used_today + amount > user.quota_daily:
+            raise QuotaExceededException(
+                f"今日配额已用完 ({user.quota_used_today}/{user.quota_daily})"
+            )
+        await user_repo.update(user, quota_used_today=user.quota_used_today + amount)
+
     async def generate_single(
         self,
         user_id: int,
         data: GeneratePromptRequest,
     ) -> GeneratedPromptOut:
         """单条同步生成提示词."""
+        # 0. 检查配额
+        await self._check_and_deduct_quota(user_id, amount=1)
+
         # 1. 加载产品
         product = await self._product_repo.get_by_uuid(data.product_uuid)
         if not product or product.user_id != user_id:
@@ -120,6 +136,9 @@ class PromptEngineService:
         data: BatchGenerateRequest,
     ) -> BatchGenerateResponse:
         """提交批量异步任务."""
+        # 0. 检查配额
+        await self._check_and_deduct_quota(user_id, amount=len(data.scene_ids))
+
         # 1. 加载产品
         product = await self._product_repo.get_by_uuid(data.product_uuid)
         if not product or product.user_id != user_id:

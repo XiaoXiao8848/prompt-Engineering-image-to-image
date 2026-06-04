@@ -1,35 +1,76 @@
-import { useState } from "react"
+import { useState, useEffect, useRef } from "react"
 import { useQuery } from "@tanstack/react-query"
 import { useParams, useNavigate } from "react-router-dom"
 import { jobsApi } from "@/api/jobs"
 import { Loader2, Copy, Check, ArrowLeft } from "lucide-react"
-// import { toast } from "sonner"
 
 export default function JobDetail() {
   const { jobUuid } = useParams()
   const navigate = useNavigate()
   const [copiedId, setCopiedId] = useState<string | null>(null)
+  const [sseProgress, setSseProgress] = useState<any>(null)
+  const [sseConnected, setSseConnected] = useState(false)
+  const eventSourceRef = useRef<EventSource | null>(null)
 
   const { data: detail } = useQuery({
     queryKey: ["job", jobUuid],
     queryFn: () => jobsApi.getDetail(jobUuid!),
     enabled: !!jobUuid,
-    refetchInterval: 3000,
+    refetchInterval: sseConnected ? false : 3000,
   })
 
   const { data: progress } = useQuery({
     queryKey: ["job-progress", jobUuid],
     queryFn: () => jobsApi.getProgress(jobUuid!),
     enabled: !!jobUuid,
-    refetchInterval: 3000,
+    refetchInterval: sseConnected ? false : 3000,
   })
 
   const { data: results } = useQuery({
     queryKey: ["job-results", jobUuid],
     queryFn: () => jobsApi.getResults(jobUuid!),
     enabled: !!jobUuid,
-    refetchInterval: 3000,
+    refetchInterval: sseConnected ? false : 3000,
   })
+
+  // SSE connection
+  useEffect(() => {
+    if (!jobUuid) return
+    const token = localStorage.getItem("access_token")
+    const es = new EventSource(`/api/v1/jobs/${jobUuid}/stream?token=${token}`)
+    eventSourceRef.current = es
+
+    es.addEventListener("progress", (e) => {
+      try {
+        const data = JSON.parse(e.data)
+        setSseProgress(data)
+        setSseConnected(true)
+      } catch {
+        /* ignore parse error */
+      }
+    })
+
+    es.addEventListener("done", (e) => {
+      try {
+        const data = JSON.parse(e.data)
+        setSseProgress((prev: any) => ({ ...prev, status: data.status }))
+        es.close()
+      } catch {
+        /* ignore */
+      }
+    })
+
+    es.addEventListener("error", () => {
+      setSseConnected(false)
+      es.close()
+    })
+
+    return () => {
+      es.close()
+    }
+  }, [jobUuid])
+
+  const activeProgress = sseProgress || progress
 
   const handleCopy = async (text: string, id: string) => {
     await navigator.clipboard.writeText(text)
@@ -47,7 +88,7 @@ export default function JobDetail() {
     }
   }
 
-  if (!detail || !progress) {
+  if (!detail || !activeProgress) {
     return (
       <div className="flex items-center justify-center h-64">
         <Loader2 className="w-8 h-8 animate-spin text-indigo-600" />
@@ -72,30 +113,30 @@ export default function JobDetail() {
       {/* Progress Card */}
       <div className="bg-white border border-gray-200 rounded-xl p-6 space-y-4">
         <div className="flex items-center justify-between">
-          <span className={`inline-flex px-3 py-1 rounded-full text-sm font-medium capitalize ${getStatusColor(progress.status)}`}>
-            {progress.status}
+          <span className={`inline-flex px-3 py-1 rounded-full text-sm font-medium capitalize ${getStatusColor(activeProgress.status)}`}>
+            {activeProgress.status}
           </span>
-          <span className="text-2xl font-bold text-gray-900">{progress.progress_percent}%</span>
+          <span className="text-2xl font-bold text-gray-900">{activeProgress.progress_percent}%</span>
         </div>
 
         <div className="w-full h-3 bg-gray-100 rounded-full overflow-hidden">
           <div
             className="h-full bg-indigo-600 rounded-full transition-all duration-500"
-            style={{ width: `${progress.progress_percent}%` }}
+            style={{ width: `${activeProgress.progress_percent}%` }}
           />
         </div>
 
         <div className="grid grid-cols-3 gap-4 text-center">
           <div className="bg-gray-50 rounded-lg p-3">
-            <p className="text-lg font-semibold text-gray-900">{progress.total_tasks}</p>
+            <p className="text-lg font-semibold text-gray-900">{activeProgress.total_tasks}</p>
             <p className="text-xs text-gray-500">Total</p>
           </div>
           <div className="bg-green-50 rounded-lg p-3">
-            <p className="text-lg font-semibold text-green-700">{progress.completed_tasks}</p>
+            <p className="text-lg font-semibold text-green-700">{activeProgress.completed_tasks}</p>
             <p className="text-xs text-gray-500">Completed</p>
           </div>
           <div className="bg-red-50 rounded-lg p-3">
-            <p className="text-lg font-semibold text-red-700">{progress.failed_tasks}</p>
+            <p className="text-lg font-semibold text-red-700">{activeProgress.failed_tasks}</p>
             <p className="text-xs text-gray-500">Failed</p>
           </div>
         </div>
@@ -109,7 +150,7 @@ export default function JobDetail() {
 
         {!results || results.length === 0 ? (
           <div className="px-6 py-12 text-center text-gray-500">
-            {progress.status === "pending" || progress.status === "queued"
+            {activeProgress.status === "pending" || activeProgress.status === "queued"
               ? "Waiting to start..."
               : "No results yet"}
           </div>

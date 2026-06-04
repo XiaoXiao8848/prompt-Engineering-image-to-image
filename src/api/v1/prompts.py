@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from fastapi import APIRouter
 
-from src.api.deps import CurrentUser, DBSession, RedisDep
+from src.api.deps import CurrentUserOrApiKey, DBSession, RedisDep
 from src.core.exceptions import NotFoundException, QuotaExceededException, ValidationException, exception_to_http
 from src.core.responses import success
 from src.schemas.prompt import (
@@ -22,7 +22,7 @@ router = APIRouter(prefix="/prompts", tags=["提示词生成"])
 @router.post("/generate", response_model=dict)
 async def generate_prompt(
     data: GeneratePromptRequest,
-    user: CurrentUser,
+    user: CurrentUserOrApiKey,
     db: DBSession,
     redis: RedisDep,
 ) -> dict:
@@ -39,7 +39,7 @@ async def generate_prompt(
 @router.post("/generate/batch", response_model=dict)
 async def batch_generate(
     data: BatchGenerateRequest,
-    user: CurrentUser,
+    user: CurrentUserOrApiKey,
     db: DBSession,
     redis: RedisDep,
 ) -> dict:
@@ -64,7 +64,7 @@ async def batch_generate(
 @router.post("/generate/workflow", response_model=dict)
 async def generate_workflow(
     data: GeneratePromptRequest,
-    user: CurrentUser,
+    user: CurrentUserOrApiKey,
     db: DBSession,
     redis: RedisDep,
 ) -> dict:

@@ -5,7 +5,23 @@ from __future__ import annotations
 from datetime import datetime, timedelta, timezone
 from typing import Any
 
-import bcrypt
+import importlib.util
+import sys
+
+# Workaround: venv bcrypt package may be corrupted on Windows
+# Try to load from system paths if venv's is broken
+_bcrypt_spec = importlib.util.find_spec("bcrypt")
+if _bcrypt_spec and _bcrypt_spec.origin:
+    import bcrypt
+    if not hasattr(bcrypt, "hashpw"):
+        # Load from system Python
+        _sys_bcrypt = importlib.util.find_spec("bcrypt", sys.path[1:])
+        if _sys_bcrypt and _sys_bcrypt.origin != _bcrypt_spec.origin:
+            bcrypt = importlib.util.module_from_spec(_sys_bcrypt)
+            _sys_bcrypt.loader.exec_module(bcrypt)  # type: ignore[union-attr]
+else:
+    import bcrypt  # type: ignore[no-redef]
+
 from jose import JWTError, jwt
 
 from src.config import settings
